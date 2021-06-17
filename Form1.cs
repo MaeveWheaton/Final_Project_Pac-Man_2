@@ -5,6 +5,8 @@
  * Pac-Man inspired game with 1 player and 2 player options.
  * 1 player - the player, as Pac-Man, must collect all the "pellets" in the map before the time runs out without being caught by a ghost
  * 2 player - player 1, as Pac-man, must collect all the "pellets" in the map; player 2, as the ghost Blinky, must try to catch p1
+ * Both have an "energizer" feature. Four dots, one in each corner, which resemble pellets and allow Pac-Man to eat the ghost, 
+ * which adds points and resets the ghost to it's origional position.
 */
 
 using System;
@@ -49,14 +51,17 @@ namespace Final_Project_Pac_Man
         Rectangle blinkyBottom = new Rectangle();
         Rectangle blinkyRight = new Rectangle();
         Rectangle blinkyCentre = new Rectangle(); //for turn points
-
-        Random randGhostDirection = new Random();
+        Random randGhostDirection = new Random(); //for changing direction in 1p mode
         int newGhostDirection;
+        bool ghostFrightened; //for energizer effects
 
         List<Rectangle> walls = new List<Rectangle>();
         List<Rectangle> pelletsOrigins = new List<Rectangle>();
         List<Rectangle> pellets = new List<Rectangle>();
         List<Rectangle> turnPoints = new List<Rectangle>();
+        List<Rectangle> energizersOrigins = new List<Rectangle>();
+        List<Rectangle> energizers = new List<Rectangle>();
+        int energizerTimer;
 
         bool wDown = false;
         bool aDown = false;
@@ -128,7 +133,9 @@ namespace Final_Project_Pac_Man
             SetWalls();
             SetTurnPoints();
             SetPellets();
+            SetEnergizers();
             pellets = pelletsOrigins;
+            energizers = energizersOrigins;
 
             pacMan = new Rectangle(205, 335, 20, 20);
             pacManDirection = "left";
@@ -138,6 +145,7 @@ namespace Final_Project_Pac_Man
             blinky = new Rectangle(205, 175, 20, 20);
             blinkyDirection = "right";
             blinkySpeed = 10;
+            ghostFrightened = false;
 
             gameState = "running";
 
@@ -277,33 +285,32 @@ namespace Final_Project_Pac_Man
             //check if pacman touches the end of a tunnel
             TunnelTeleport();
 
-            //chack if pacman collides with a pellet
+            //check if pacman collides with a pellet
             PacManPelletCollision();
+
+            //check if pacman collides with energizer
+            PacManEnergizerCollision();
+
+            //blinky controls and collisions
+            blinkyPreviousX = blinky.X;
+            blinkyPreviousY = blinky.Y;
+
+            //move in current direction
+            MoveBlinky();
 
             if (gameMode == "2p")
             {
-                //blinky controls and collisions
-                blinkyPreviousX = blinky.X;
-                blinkyPreviousY = blinky.Y;
-
-                //move in current direction
-                MoveBlinky();
-
                 //check for collision with wall in current direction
                 BlinkyWallCollision();
 
                 //check for change in direction
                 ChangeBlinkyDirection();
+
+                //check for collision with energizer
+                BlinkyEnergizerCollision();
             }
             else
             {
-                //blinky controls and collisions
-                blinkyPreviousX = blinky.X;
-                blinkyPreviousY = blinky.Y;
-
-                //move in current direction
-                MoveBlinky();
-
                 //check for change in direction
                 BlinkyAtonumousDirectionChange();
 
@@ -313,6 +320,9 @@ namespace Final_Project_Pac_Man
                 //decrease time for 1p
                 time--;
             }
+
+            //check for pacman & ghost collision in frightened mode
+            PacManGhostCollision();
 
             //check for end game
             CheckEndConditions();
@@ -379,6 +389,12 @@ namespace Final_Project_Pac_Man
                 for (int i = 0; i < pellets.Count(); i++)
                 {
                     e.Graphics.FillRectangle(pelletsBrush, pellets[i]);
+                }
+
+                //draw power ups
+                for (int i = 0; i < energizers.Count(); i++)
+                {
+                    e.Graphics.FillEllipse(pelletsBrush, energizers[i]);
                 }
 
                 //draw pacman
@@ -668,6 +684,34 @@ namespace Final_Project_Pac_Man
         }
 
         /// <summary>
+        /// Checks for collision between PacMan and an energizer, sets ghost to frightened mode - can be eaten, adds points, runs timer - turns off frightened mode
+        /// </summary>
+        public void PacManEnergizerCollision()
+        {
+            for (int i = 0; i < energizers.Count(); i++)
+            {
+                if (pacMan.IntersectsWith(energizers[i]))
+                {
+                    energizers.RemoveAt(i);
+                    ghostFrightened = true;
+                    blinkyBrush.Color = Color.AliceBlue;
+                    score += 10;
+                    energizerTimer = 50;
+                }
+            }
+
+            if (energizerTimer > 0)
+            {
+                energizerTimer--;
+            }
+            else
+            {
+                ghostFrightened = false;
+                blinkyBrush.Color = Color.Red;
+            }
+        }
+
+        /// <summary>
         /// Checks current direction and moves Blinky
         /// </summary>
         public void MoveBlinky()
@@ -861,7 +905,21 @@ namespace Final_Project_Pac_Man
         }
 
         /// <summary>
-        /// Ramdomly decides new ghost direction, for 1p mode
+        /// Checks for collision between Blinky and an energizer in 2p mode, removes energizer
+        /// </summary>
+        public void BlinkyEnergizerCollision()
+        {
+            for (int i = 0; i < energizers.Count(); i++)
+            {
+                if (blinky.IntersectsWith(energizers[i]))
+                {
+                    energizers.RemoveAt(i);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Randomly decides new ghost direction, for 1p mode
         /// </summary>
         public void BlinkyAtonumousDirectionChange()
         {
@@ -929,6 +987,20 @@ namespace Final_Project_Pac_Man
         }
 
         /// <summary>
+        /// Checks if Pac-Man collides with a ghost in frightened mode, resets ghost and adds points
+        /// </summary>
+        public void PacManGhostCollision()
+        {
+            if (ghostFrightened == true && pacMan.IntersectsWith(blinky))
+            {
+                blinky.X = 205;
+                blinky.Y = 175;
+                blinkyDirection = "right";
+                score += 400;
+            }
+        }
+
+        /// <summary>
         /// Ends game if time is up or all the pellet are gone
         /// </summary>
         public void CheckEndConditions()
@@ -939,7 +1011,13 @@ namespace Final_Project_Pac_Man
                 gameTimer.Enabled = false;
                 gameState = "over";
             }
-            else if (blinky.IntersectsWith(pacMan))
+            else if (gameMode == "2p" && blinky.IntersectsWith(pacMan) && ghostFrightened == true)
+            {
+                outcome = "p1win";
+                gameTimer.Enabled = false;
+                gameState = "over";
+            }
+            else if (blinky.IntersectsWith(pacMan) && ghostFrightened == false)
             {
                 outcome = "p2win";
                 gameTimer.Enabled = false;
@@ -1109,6 +1187,18 @@ namespace Final_Project_Pac_Man
             TurnsRow2_X_Pattern(turnPointY, turnPointSize);
             turnPoints.Add(new Rectangle(55, turnPointY, turnPointSize, turnPointSize));
             turnPoints.Add(new Rectangle(375, turnPointY, turnPointSize, turnPointSize));
+        }
+
+        /// <summary>
+        /// Adds 4 powerups (one in each corner) to the powerUps list
+        /// </summary>
+        public void SetEnergizers()
+        {
+            int energizerSize = 10;
+            energizersOrigins.Add(new Rectangle(20, 50, energizerSize, energizerSize));
+            energizersOrigins.Add(new Rectangle(400, 50, energizerSize, energizerSize));
+            energizersOrigins.Add(new Rectangle(20, 420, energizerSize, energizerSize));
+            energizersOrigins.Add(new Rectangle(400, 420, energizerSize, energizerSize));
         }
 
         /// <summary>
