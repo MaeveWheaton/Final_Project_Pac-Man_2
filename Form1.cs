@@ -40,7 +40,7 @@ namespace Final_Project_Pac_Man
         Rectangle pacManRight = new Rectangle();
         Rectangle pacManCentre = new Rectangle(); //for turn points
 
-        //blinky = red ghost, player 2/ enemy
+        //blinky = red ghost && player 2
         Rectangle blinky = new Rectangle();
         string blinkyDirection;
         int blinkySpeed;
@@ -51,6 +51,30 @@ namespace Final_Project_Pac_Man
         Rectangle blinkyBottom = new Rectangle();
         Rectangle blinkyRight = new Rectangle();
         Rectangle blinkyCentre = new Rectangle(); //for turn points
+
+        //pinky = pink ghost
+        Rectangle pinky = new Rectangle();
+        string pinkyDirection;
+        int pinkySpeed;
+        /*int pinkyPreviousX; //for reseting position after wall collision
+        int pinkyPreviousY;
+        Rectangle blinkyTop = new Rectangle(); //for stopping at walls
+        Rectangle blinkyLeft = new Rectangle();
+        Rectangle blinkyBottom = new Rectangle();
+        Rectangle blinkyRight = new Rectangle();*/
+        Rectangle pinkyCentre = new Rectangle(); //for turn points
+
+        //inky = blue ghost
+        Rectangle inky = new Rectangle();
+        string inkyDirection;
+        int inkySpeed;
+
+        //clyde = orange ghost
+        Rectangle clyde = new Rectangle();
+        string clydeDirection;
+        int clydeSpeed;
+
+        //common ghost variables
         Random randGhostDirection = new Random(); //for changing direction in 1p mode
         int newGhostDirection;
         bool ghostFrightened; //for energizer effects
@@ -83,6 +107,9 @@ namespace Final_Project_Pac_Man
 
         SolidBrush pacManBrush = new SolidBrush(Color.Yellow);
         SolidBrush blinkyBrush = new SolidBrush(Color.Red);
+        SolidBrush pinkyBrush = new SolidBrush(Color.Pink);
+        SolidBrush inkyBrush = new SolidBrush(Color.LightBlue);
+        SolidBrush clydeBrush = new SolidBrush(Color.Orange);
         SolidBrush pelletsBrush = new SolidBrush(Color.PapayaWhip);
         SolidBrush wallBrush = new SolidBrush(Color.DodgerBlue);
 
@@ -121,15 +148,19 @@ namespace Final_Project_Pac_Man
         /// </summary>
         public void GameInit()
         {
+            //start music
             bgMusic.Stop();
             bgMusic.Play();
 
+            //clear labels
             titleLabel.Text = "";
             instructionLabel.Text = "";
 
+            //reset time and score
             score = 0;
             time = 850;
 
+            //set up screen objects
             SetWalls();
             SetTurnPoints();
             SetPellets();
@@ -137,16 +168,33 @@ namespace Final_Project_Pac_Man
             pellets = pelletsOrigins;
             energizers = energizersOrigins;
 
+            //set up Pac-Man
             pacMan = new Rectangle(205, 335, 20, 20);
             pacManDirection = "left";
             pacManStartAngle = 225;
             pacManSpeed = 10;
 
+            //set up ghosts
             blinky = new Rectangle(205, 175, 20, 20);
             blinkyDirection = "right";
             blinkySpeed = 10;
+
+            if (gameMode == "1p")
+            {
+                pinky = new Rectangle(205, 215, 20, 20);
+                pinkyDirection = "right";
+                pinkySpeed = 0;
+                inky = new Rectangle(165, 215, 20, 20);
+                inkyDirection = "right";
+                inkySpeed = 0;
+                clyde = new Rectangle(245, 215, 20, 20);
+                clydeDirection = "right";
+                clydeSpeed = 0;
+            }
+
             ghostFrightened = false;
 
+            //start game
             gameState = "running";
 
             StartCountdown();
@@ -400,7 +448,7 @@ namespace Final_Project_Pac_Man
                 //draw pacman
                 e.Graphics.FillPie(pacManBrush, pacMan, pacManStartAngle, 270);
 
-                //draw blinky
+                //draw ghosts
                 e.Graphics.FillEllipse(blinkyBrush, blinky);
 
                 //mode specific code
@@ -408,6 +456,11 @@ namespace Final_Project_Pac_Man
                 {
                     //update time
                     timeLabel.Text = $"TIME LEFT: {time}";
+
+                    //draw other ghosts
+                    e.Graphics.FillEllipse(pinkyBrush, pinky);
+                    e.Graphics.FillEllipse(inkyBrush, inky);
+                    e.Graphics.FillEllipse(clydeBrush, clyde);
                 }
             }
             else if (gameState == "over")
@@ -996,6 +1049,7 @@ namespace Final_Project_Pac_Man
                 blinky.X = 205;
                 blinky.Y = 175;
                 blinkyDirection = "right";
+                blinkySpeed = 10;
                 score += 400;
             }
         }
