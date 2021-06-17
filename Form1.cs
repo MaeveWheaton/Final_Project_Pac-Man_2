@@ -2,7 +2,9 @@
  * Maeve Wheaton
  * Mr.T
  * June 17, 2021
- * Pac-Man inspired game where the player must collect all the dots in the map before the time runs out. 
+ * Pac-Man inspired game with 1 player and 2 player options.
+ * 1 player - the player, as Pac-Man, must collect all the "pellets" in the map before the time runs out without being caught by a ghost
+ * 2 player - player 1, as Pac-man, must collect all the "pellets" in the map; player 2, as the ghost Blinky, must try to catch p1
 */
 
 using System;
@@ -36,10 +38,9 @@ namespace Final_Project_Pac_Man
         Rectangle pacManRight = new Rectangle();
         Rectangle pacManCentre = new Rectangle(); //for turn points
 
-        //blinky = red ghost, player 2
+        //blinky = red ghost, player 2/ enemy
         Rectangle blinky = new Rectangle();
         string blinkyDirection;
-        int blinkyStartAngle;
         int blinkySpeed;
         int blinkyPreviousX; //for reseting position after wall collision
         int blinkyPreviousY;
@@ -48,6 +49,9 @@ namespace Final_Project_Pac_Man
         Rectangle blinkyBottom = new Rectangle();
         Rectangle blinkyRight = new Rectangle();
         Rectangle blinkyCentre = new Rectangle(); //for turn points
+
+        Random randGhostDirection = new Random();
+        int newGhostDirection;
 
         List<Rectangle> walls = new List<Rectangle>();
         List<Rectangle> pelletsOrigins = new List<Rectangle>();
@@ -119,7 +123,7 @@ namespace Final_Project_Pac_Man
             instructionLabel.Text = "";
 
             score = 0;
-            time = 700;
+            time = 850;
 
             SetWalls();
             SetTurnPoints();
@@ -131,12 +135,9 @@ namespace Final_Project_Pac_Man
             pacManStartAngle = 225;
             pacManSpeed = 10;
 
-            if (gameMode == "2p")
-            {
-                blinky = new Rectangle(205, 175, 20, 20);
-                blinkyDirection = "right";
-                blinkySpeed = 10;
-            }
+            blinky = new Rectangle(205, 175, 20, 20);
+            blinkyDirection = "right";
+            blinkySpeed = 10;
 
             gameState = "running";
 
@@ -296,6 +297,19 @@ namespace Final_Project_Pac_Man
             }
             else
             {
+                //blinky controls and collisions
+                blinkyPreviousX = blinky.X;
+                blinkyPreviousY = blinky.Y;
+
+                //move in current direction
+                MoveBlinky();
+
+                //check for change in direction
+                BlinkyAtonumousDirectionChange();
+
+                //check for collision with wall in current direction
+                BlinkyWallCollision();
+
                 //decrease time for 1p
                 time--;
             }
@@ -370,16 +384,14 @@ namespace Final_Project_Pac_Man
                 //draw pacman
                 e.Graphics.FillPie(pacManBrush, pacMan, pacManStartAngle, 270);
 
+                //draw blinky
+                e.Graphics.FillEllipse(blinkyBrush, blinky);
+
                 //mode specific code
                 if (gameMode == "1p")
                 {
                     //update time
                     timeLabel.Text = $"TIME LEFT: {time}";
-                }
-                else
-                {
-                    //draw blinky
-                    e.Graphics.FillEllipse(blinkyBrush, blinky);
                 }
             }
             else if (gameState == "over")
@@ -426,9 +438,8 @@ namespace Final_Project_Pac_Man
                     }
                 }
 
-                //clear score
-                scoreLabel.Text = "";
-                
+                //write instructions
+                scoreLabel.Text = $"SCORE: {score}";
                 instructionLabel.Text = "PRESS SPACE TO PLAY AGAIN\n\nPRESS ESCAPE TO EXIT\n\nPRESS B TO CHANGE GAME MODE\n";
 
                 //draw pacman and dots
@@ -437,8 +448,6 @@ namespace Final_Project_Pac_Man
                 e.Graphics.FillEllipse(pelletsBrush, 225, 210, 10, 10);
                 e.Graphics.FillEllipse(pelletsBrush, 255, 210, 10, 10);
                 e.Graphics.FillEllipse(pelletsBrush, 285, 210, 10, 10);
-
-                
             }
         }
 
@@ -731,7 +740,21 @@ namespace Final_Project_Pac_Man
 
             if (blinky.X <= 0 || blinky.X >= this.Width - blinky.Width)
             {
-                BlinkyWallCollisionReset();
+                if (gameMode == "1p")
+                {
+                    if (blinkyDirection == "left")
+                    {
+                        blinkyDirection = "right";
+                    }
+                    else
+                    {
+                        blinkyDirection = "left";
+                    }
+                }
+                else
+                {
+                    BlinkyWallCollisionReset();
+                }
             }
         }
 
@@ -838,6 +861,74 @@ namespace Final_Project_Pac_Man
         }
 
         /// <summary>
+        /// Ramdomly decides new ghost direction, for 1p mode
+        /// </summary>
+        public void BlinkyAtonumousDirectionChange()
+        {
+            blinkyCentre = new Rectangle(blinky.X + 5, blinky.Y + 5, 10, 10);
+
+            //1 = up, 2 = left, 3 = down, 4 = right
+            for (int i = 0; i < turnPoints.Count(); i++)
+            {
+                if (blinkyCentre.IntersectsWith(turnPoints[i]))
+                {
+                    if (blinkyDirection == "up")
+                    {
+                        newGhostDirection = randGhostDirection.Next(2, 5);
+                    }
+                    else if (blinkyDirection == "left")
+                    {
+                        newGhostDirection = randGhostDirection.Next(1, 5);
+                        while (newGhostDirection == 2)
+                        {
+                            newGhostDirection = randGhostDirection.Next(1, 5);
+                        }
+                    }
+                    else if (blinkyDirection == "down")
+                    {
+                        newGhostDirection = randGhostDirection.Next(1, 4);
+                    }
+                    else if (blinkyDirection == "right")
+                    {
+                        newGhostDirection = randGhostDirection.Next(1, 5);
+                        while (newGhostDirection == 4)
+                        {
+                            newGhostDirection = randGhostDirection.Next(1, 5);
+                        }
+                    }
+
+                    SwitchGhostDirection();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Changes ghost direction
+        /// </summary>
+        public void SwitchGhostDirection()
+        {
+            switch (newGhostDirection)
+            {
+                case 1:
+                    blinkyDirection = "up";
+                    blinkySpeed = 10;
+                    break;
+                case 2:
+                    blinkyDirection = "left";
+                    blinkySpeed = 10;
+                    break;
+                case 3:
+                    blinkyDirection = "down";
+                    blinkySpeed = 10;
+                    break;
+                case 4:
+                    blinkyDirection = "right";
+                    blinkySpeed = 10;
+                    break;
+            }
+        }
+
+        /// <summary>
         /// Ends game if time is up or all the pellet are gone
         /// </summary>
         public void CheckEndConditions()
@@ -848,7 +939,7 @@ namespace Final_Project_Pac_Man
                 gameTimer.Enabled = false;
                 gameState = "over";
             }
-            else if (gameMode == "2p" && blinky.IntersectsWith(pacMan))
+            else if (blinky.IntersectsWith(pacMan))
             {
                 outcome = "p2win";
                 gameTimer.Enabled = false;
