@@ -14,6 +14,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using System.Threading;
+using System.IO;
+using System.Media;
 
 namespace Final_Project_Pac_Man
 {
@@ -24,12 +27,18 @@ namespace Final_Project_Pac_Man
         string pacManDirection;
         int pacManStartAngle;
         int pacManSpeed;
+        int pacManPreviousX; //for reseting position after wall collision
+        int pacManPreviousY;
+        Rectangle pacManTop = new Rectangle(); //for stopping at walls
+        Rectangle pacManLeft = new Rectangle();
+        Rectangle pacManBottom = new Rectangle();
+        Rectangle pacManRight = new Rectangle();
+        Rectangle pacManCentre = new Rectangle(); //for turn points
 
         List<Rectangle> walls = new List<Rectangle>();
         List<Rectangle> pelletsOrigins = new List<Rectangle>();
         List<Rectangle> pellets = new List<Rectangle>();
         List<Rectangle> turnPoints = new List<Rectangle>();
-
 
         bool upArrowDown;
         bool leftArrowDown;
@@ -39,26 +48,35 @@ namespace Final_Project_Pac_Man
         string gameState = "waiting";
         string outcome;
 
-        int score = 0;
-        int time = 1000;
+        int score;
+        int time;
         int highScore = 0;
 
         SolidBrush pacManBrush = new SolidBrush(Color.Yellow);
         SolidBrush pelletsBrush = new SolidBrush(Color.PapayaWhip);
         SolidBrush wallBrush = new SolidBrush(Color.DodgerBlue);
 
+        SoundPlayer bgMusic = new SoundPlayer(Properties.Resources.background_music);
+
         public Form1()
         {
             InitializeComponent();
+            bgMusic.Play();
         }
 
+        /// <summary>
+        /// Sets variables and screen objects and starts game
+        /// </summary>
         public void GameInit()
         {
+            bgMusic.Stop();
+            bgMusic.Play();
+
             titleLabel.Text = "";
             instructionLabel.Text = "";
 
             score = 0;
-            time = 1000;
+            time = 700;
 
             SetWalls();
             SetTurnPoints();
@@ -71,7 +89,34 @@ namespace Final_Project_Pac_Man
             pacManSpeed = 10;
 
             gameState = "running";
+
+            StartCountdown();
+
             gameTimer.Enabled = true;
+        }
+
+        /// <summary>
+        /// Displays a countdown from 3 to GO
+        /// </summary>
+        public void StartCountdown()
+        {
+            countDownLabel.Visible = true;
+            countDownLabel.Text = "3";
+            Refresh();
+            Thread.Sleep(1000);
+
+            countDownLabel.Text = "2";
+            Refresh();
+            Thread.Sleep(1000);
+
+            countDownLabel.Text = "1";
+            Refresh();
+            Thread.Sleep(1000);
+
+            countDownLabel.Text = "GO!";
+            Refresh();
+            Thread.Sleep(1000);
+            countDownLabel.Visible = false;
         }
 
         private void Form1_KeyDown(object sender, KeyEventArgs e)
@@ -126,83 +171,27 @@ namespace Final_Project_Pac_Man
 
         private void gameTimer_Tick(object sender, EventArgs e)
         {
-            int pacManPreviousX = pacMan.X;
-            int pacManPreviousY = pacMan.Y;
+            pacManPreviousX = pacMan.X;
+            pacManPreviousY = pacMan.Y;
 
-            //check for change direction 
+            //move in current direction
+            MovePacMan();
 
+            //check for collision with wall in current direction
+            PacManWallCollision();
 
-            //move pacMan based on direction
+            //check for change in direction
+            ChangePacManDirection();
 
+            //check if pacman touches the end of a tunnel
+            TunnelTeleport();
 
-            //if (pacManSpeed == 0 &&
-            if (upArrowDown == true)
-            {
-                pacManSpeed = 10;
-                pacMan.Y -= pacManSpeed;
-            }
-            if (leftArrowDown == true)
-            {
-                pacManSpeed = 10;
-                pacMan.X -= pacManSpeed;
-            }
-            if (downArrowDown == true)
-            {
-                pacManSpeed = 10;
-                pacMan.Y += pacManSpeed;
-            }
-            if (rightArrowDown == true)
-            {
-                pacManSpeed = 10;
-                pacMan.X += pacManSpeed;
-            }
+            //chack if pacman collides with a pellet
+            PacManPelletCollision();
 
-            //stop when collides with wall
-            for (int i = 0; i < walls.Count(); i++)
-            {
-                if (pacMan.IntersectsWith(walls[i]))
-                {
-                    pacMan.X = pacManPreviousX;
-                    pacMan.Y = pacManPreviousY;
-                    pacManSpeed = 0;
-                }
-            }
-
-            //pacman use tunnels to teleport to the other side
-            if (pacMan.X <= 0)
-            {
-                pacMan.X = this.Width - pacMan.Width;
-            }
-            else if (pacMan.X >= this.Width - pacMan.Width)
-            {
-                pacMan.X = 0;
-            }
-
-            //pacman collide with pellet, gain points and remove pellet
-           for (int i = 0; i < pellets.Count(); i++)
-            {
-                if (pacMan.IntersectsWith(pellets[i]))
-                {
-                    score += 10;
-                    pellets.RemoveAt(i);
-                }
-            }
-
-           //decrease time and end game if time is up or all the pellet are gone
+            //decrease time, check for end game
             time--;
-
-            if (time == 0)
-            {
-                outcome = "lose";
-                gameTimer.Enabled = false;
-                gameState = "over";
-            }
-            else if (pellets.Count() == 0)
-            {
-                outcome = "win";
-                gameTimer.Enabled = false;
-                gameState = "over";
-            }
+            CheckEndConditions();
 
             Refresh();
         }
@@ -279,6 +268,244 @@ namespace Final_Project_Pac_Man
             }
         }
 
+        /// <summary>
+        /// Checks current direction and moves PacMan
+        /// </summary>
+        public void MovePacMan()
+        {
+            switch (pacManDirection)
+            {
+                case "up":
+                    pacMan.Y -= pacManSpeed;
+                    break;
+                case "left":
+                    pacMan.X -= pacManSpeed;
+                    break;
+                case "down":
+                    pacMan.Y += pacManSpeed;
+                    break;
+                case "right":
+                    pacMan.X += pacManSpeed;
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// Checks if PacMan collides with a wall in the current direction
+        /// </summary>
+        public void PacManWallCollision()
+        {
+            switch (pacManDirection)
+            {
+                case "up":
+                    pacManTop = new Rectangle(pacMan.X, pacMan.Y, 20, 1);
+                    for (int i = 0; i < walls.Count(); i++)
+                    {
+                        if (pacManTop.IntersectsWith(walls[i]))
+                        {
+                            WallCollisionReset();
+                        }
+                    }
+                    break;
+                case "left":
+                    pacManLeft = new Rectangle(pacMan.X, pacMan.Y, 1, 20);
+                    for (int i = 0; i < walls.Count(); i++)
+                    {
+                        if (pacManLeft.IntersectsWith(walls[i]))
+                        {
+                            WallCollisionReset();
+                        }
+                    }
+                    break;
+                case "down":
+                    pacManBottom = new Rectangle(pacMan.X, pacMan.Y + 15, 20, 1);
+                    for (int i = 0; i < walls.Count(); i++)
+                    {
+                        if (pacManBottom.IntersectsWith(walls[i]))
+                        {
+                            WallCollisionReset();
+                        }
+                    }
+                    break;
+                case "right":
+                    pacManRight = new Rectangle(pacMan.X + 15, pacMan.Y, 1, 20);
+                    for (int i = 0; i < walls.Count(); i++)
+                    {
+                        if (pacManRight.IntersectsWith(walls[i]))
+                        {
+                            WallCollisionReset();
+                        }
+                    }
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// Resets pacman back to position before movement so it doesn't go into the wall and stops
+        /// </summary>
+        public void WallCollisionReset()
+        {
+            pacMan.X = pacManPreviousX;
+            pacMan.Y = pacManPreviousY;
+            pacManSpeed = 0;
+        }
+
+        /// <summary>
+        /// Checks current direction and changes direction if key is pressed while at a turn point, can always reverse, changes PacMan pie start angle to face direction of movement
+        /// </summary>
+        public void ChangePacManDirection()
+        {
+            pacManCentre = new Rectangle(pacMan.X + 5, pacMan.Y + 5, 10, 10);
+
+            switch (pacManDirection)
+            {
+                case "up":
+                    if (downArrowDown == true)
+                    {
+                        pacManDirection = "down";
+                        pacManStartAngle = 135;
+                        pacManSpeed = 10;
+                    }
+                    for (int i = 0; i < turnPoints.Count(); i++)
+                    {
+                        if (leftArrowDown == true && pacManCentre.IntersectsWith(turnPoints[i]))
+                        {
+                            pacManDirection = "left";
+                            pacManStartAngle = 225;
+                            pacManSpeed = 10;
+                        }
+                        if (rightArrowDown == true && pacManCentre.IntersectsWith(turnPoints[i]))
+                        {
+                            pacManDirection = "right";
+                            pacManStartAngle = 45;
+                            pacManSpeed = 10;
+                        }
+                    }
+                    break;
+                case "left":
+                    if (rightArrowDown == true)
+                    {
+                        pacManDirection = "right";
+                        pacManStartAngle = 45;
+                        pacManSpeed = 10;
+                    }
+                    for (int i = 0; i < turnPoints.Count(); i++)
+                    {
+                        if (upArrowDown == true && pacManCentre.IntersectsWith(turnPoints[i]))
+                        {
+                            pacManDirection = "up";
+                            pacManStartAngle = 315;
+                            pacManSpeed = 10;
+                        }
+                        if (downArrowDown == true && pacManCentre.IntersectsWith(turnPoints[i]))
+                        {
+                            pacManDirection = "down";
+                            pacManStartAngle = 135;
+                            pacManSpeed = 10;
+                        }
+                    }
+                    break;
+                case "down":
+                    if (upArrowDown == true)
+                    {
+                        pacManDirection = "up";
+                        pacManStartAngle = 315;
+                        pacManSpeed = 10;
+                    }
+                    for (int i = 0; i < turnPoints.Count(); i++)
+                    {
+                        if (leftArrowDown == true && pacManCentre.IntersectsWith(turnPoints[i]))
+                        {
+                            pacManDirection = "left";
+                            pacManStartAngle = 225;
+                            pacManSpeed = 10;
+                        }
+                        if (rightArrowDown == true && pacManCentre.IntersectsWith(turnPoints[i]))
+                        {
+                            pacManDirection = "right";
+                            pacManStartAngle = 45;
+                            pacManSpeed = 10;
+                        }
+                    }
+                    break;
+                case "right":
+                    if (leftArrowDown == true)
+                    {
+                        pacManDirection = "left";
+                        pacManStartAngle = 225;
+                        pacManSpeed = 10;
+                    }
+                    for (int i = 0; i < turnPoints.Count(); i++)
+                    {
+                        if (upArrowDown == true && pacManCentre.IntersectsWith(turnPoints[i]))
+                        {
+                            pacManDirection = "up";
+                            pacManStartAngle = 315;
+                            pacManSpeed = 10;
+                        }
+                        if (downArrowDown == true && pacManCentre.IntersectsWith(turnPoints[i]))
+                        {
+                            pacManDirection = "down";
+                            pacManStartAngle = 135;
+                            pacManSpeed = 10;
+                        }
+                    }
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// Moves pacman to the opposite side if touches the end of either tunnel
+        /// </summary>
+        public void TunnelTeleport()
+        {
+            if (pacManLeft.X == -5)
+            {
+                pacMan.X = this.Width - pacMan.Width - 5;
+            }
+            else if (pacManRight.X == this.Width + 7)
+            {
+                pacMan.X = 5;
+            }
+        }
+
+        /// <summary>
+        /// Checks for collision beteen PacMan and a pellet, adds points and removes pellet if there is a collision
+        /// </summary>
+        public void PacManPelletCollision()
+        {
+            for (int i = 0; i < pellets.Count(); i++)
+            {
+                if (pacMan.IntersectsWith(pellets[i]))
+                {
+                    score += 10;
+                    pellets.RemoveAt(i);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Ends game if time is up or all the pellet are gone
+        /// </summary>
+        public void CheckEndConditions()
+        {
+            if (time == 0)
+            {
+                outcome = "lose";
+                gameTimer.Enabled = false;
+                gameState = "over";
+            }
+            else if (pellets.Count() == 0)
+            {
+                outcome = "win";
+                gameTimer.Enabled = false;
+                gameState = "over";
+            }
+        }
+
+        /// <summary>
+        /// Adds all the wall rectangles to the walls list
+        /// </summary>
         public void SetWalls()
         {
             int outsideWallWeight = 5;
@@ -339,87 +566,156 @@ namespace Final_Project_Pac_Man
             walls.Add(new Rectangle(390, 360, 30, insideWallWeight)); //right short horizontal
 
             //ghost house
-            walls.Add(new Rectangle(150, 203, 130, 45));
+            walls.Add(new Rectangle(150, 200, 130, 48));
         }
 
+        /// <summary>
+        /// Adds all the turn point rectangles to the turnPoints list
+        /// </summary>
         public void SetTurnPoints()
         {
+            //intersection points from top to bottom, left to right
+            int turnPointSize = 1;
+            //row 1
+            int turnPointY = 55;
+            turnPoints.Add(new Rectangle(25, turnPointY, turnPointSize, turnPointSize));
+            turnPoints.Add(new Rectangle(95, turnPointY, turnPointSize, turnPointSize));
+            turnPoints.Add(new Rectangle(195, turnPointY, turnPointSize, turnPointSize));
+            turnPoints.Add(new Rectangle(235, turnPointY, turnPointSize, turnPointSize));
+            turnPoints.Add(new Rectangle(335, turnPointY, turnPointSize, turnPointSize));
+            turnPoints.Add(new Rectangle(405, turnPointY, turnPointSize, turnPointSize));
 
+            //row 2
+            turnPointY = 105;
+            TurnsRow2_X_Pattern(turnPointY, turnPointSize);
+
+            //row 3
+            turnPointY = 145;
+            TurnsRow2_X_Pattern(turnPointY, turnPointSize);
+
+            //row 4
+            turnPointY = 185;
+            turnPoints.Add(new Rectangle(139, turnPointY, turnPointSize, turnPointSize));
+            turnPoints.Add(new Rectangle(195, turnPointY, turnPointSize, turnPointSize));
+            turnPoints.Add(new Rectangle(235, turnPointY, turnPointSize, turnPointSize));
+            turnPoints.Add(new Rectangle(291, turnPointY, turnPointSize, turnPointSize));
+
+            //row 5
+            turnPointY = 225;
+            turnPoints.Add(new Rectangle(95, turnPointY, turnPointSize, turnPointSize));
+            turnPoints.Add(new Rectangle(137, turnPointY, turnPointSize, turnPointSize));
+            turnPoints.Add(new Rectangle(291, turnPointY, turnPointSize, turnPointSize));
+            turnPoints.Add(new Rectangle(335, turnPointY, turnPointSize, turnPointSize));
+
+            //row 6
+            turnPointY = 260;
+            turnPoints.Add(new Rectangle(139, turnPointY, turnPointSize, turnPointSize));
+            turnPoints.Add(new Rectangle(291, turnPointY, turnPointSize, turnPointSize));
+
+            //row 7
+            turnPointY = 305;
+            TurnsRow2_X_Pattern(turnPointY, turnPointSize);
+
+            //row 8
+            turnPointY = 345;
+            TurnsRow8_X_Pattern(turnPointY, turnPointSize);
+
+            //row 9
+            turnPointY = 385;
+            TurnsRow8_X_Pattern(turnPointY, turnPointSize);
+
+            //row 10
+            turnPointY = 425;
+            turnPoints.Add(new Rectangle(25, turnPointY, turnPointSize, turnPointSize));
+            turnPoints.Add(new Rectangle(195, turnPointY, turnPointSize, turnPointSize));
+            turnPoints.Add(new Rectangle(235, turnPointY, turnPointSize, turnPointSize));
+            turnPoints.Add(new Rectangle(405, turnPointY, turnPointSize, turnPointSize));
         }
 
+        /// <summary>
+        /// Adds a series of rectangles in the same row to the turn points list, pattern in multiple rows
+        /// </summary>
+        /// <param name="turnPointY"></param>row y value
+        /// <param name="turnPointSize"></param>size of square point
+        public void TurnsRow2_X_Pattern(int turnPointY, int turnPointSize)
+        {
+            turnPoints.Add(new Rectangle(25, turnPointY, turnPointSize, turnPointSize));
+            turnPoints.Add(new Rectangle(95, turnPointY, turnPointSize, turnPointSize));
+            turnPoints.Add(new Rectangle(139, turnPointY, turnPointSize, turnPointSize));
+            turnPoints.Add(new Rectangle(195, turnPointY, turnPointSize, turnPointSize));
+            turnPoints.Add(new Rectangle(235, turnPointY, turnPointSize, turnPointSize));
+            turnPoints.Add(new Rectangle(291, turnPointY, turnPointSize, turnPointSize));
+            turnPoints.Add(new Rectangle(335, turnPointY, turnPointSize, turnPointSize));
+            turnPoints.Add(new Rectangle(405, turnPointY, turnPointSize, turnPointSize));
+        }
+
+        /// <summary>
+        /// Adds a series of rectangles, same as row 2 + two more, in the same row to the turn points list, pattern in multiple rows
+        /// </summary>
+        /// <param name="turnPointY"></param>row y value
+        /// <param name="turnPointSize"></param>size of square point
+        public void TurnsRow8_X_Pattern(int turnPointY, int turnPointSize)
+        {
+            TurnsRow2_X_Pattern(turnPointY, turnPointSize);
+            turnPoints.Add(new Rectangle(55, turnPointY, turnPointSize, turnPointSize));
+            turnPoints.Add(new Rectangle(375, turnPointY, turnPointSize, turnPointSize));
+        }
+
+        /// <summary>
+        /// Adds all the pellet rectangles to the pelletsOrigins list
+        /// </summary>
         public void SetPellets()
         {
             int pelletSize = 4;
             //pellets top to bottom, left to right
             //row 1
-            int pelletY = 53;
-            Row1_X_Pattern(pelletY, pelletSize);
+            Row1_X_Pattern(53, pelletSize);
 
             //row 2
-            pelletY = 70;
-            Row2_X_Pattern(pelletY, pelletSize);
+            Row2_X_Pattern(70, pelletSize);
 
             //row 3
-            pelletY = 86;
-            Row2_X_Pattern(pelletY, pelletSize);
+            Row2_X_Pattern(86, pelletSize);
 
             //row 4
-            pelletY = 103;
-            Row4_X_Pattern(pelletY, pelletSize);
+            Row4_X_Pattern(103, pelletSize);
 
             //row 5
-            pelletY = 123;
-            pelletsOrigins.Add(new Rectangle(23, pelletY, pelletSize, pelletSize));
-            pelletsOrigins.Add(new Rectangle(93, pelletY, pelletSize, pelletSize));
-            pelletsOrigins.Add(new Rectangle(135, pelletY, pelletSize, pelletSize));
-            pelletsOrigins.Add(new Rectangle(289, pelletY, pelletSize, pelletSize));
-            pelletsOrigins.Add(new Rectangle(333, pelletY, pelletSize, pelletSize));
-            pelletsOrigins.Add(new Rectangle(403, pelletY, pelletSize, pelletSize));
+            Row5_X_Pattern(123, pelletSize);
 
             //row 6
-            pelletY = 143;
-            Row6_X_Pattern(pelletY, pelletSize);
+            Row6_X_Pattern(143, pelletSize);
 
             // rows 7 - 15
-            Row7to15(pelletY, pelletSize);
+            Row7to15(pelletSize);
 
             //row 16
-            pelletY = 303;
-            Row1_X_Pattern(pelletY, pelletSize);
+            Row1_X_Pattern(303, pelletSize);
 
             //row 17
-            pelletY = 323;
-            Row17_X_Pattern(pelletY, pelletSize);
+            Row17_X_Pattern(323, pelletSize);
 
             //row 18
-            pelletY = 343;
-            Row18_X_Pattern(pelletY, pelletSize);
+            Row18_X_Pattern(343, pelletSize);
 
             //row 19
-            pelletY = 363;
-            pelletsOrigins.Add(new Rectangle(51, pelletY, pelletSize, pelletSize));
-            pelletsOrigins.Add(new Rectangle(93, pelletY, pelletSize, pelletSize));
-            pelletsOrigins.Add(new Rectangle(135, pelletY, pelletSize, pelletSize));
-            pelletsOrigins.Add(new Rectangle(289, pelletY, pelletSize, pelletSize));
-            pelletsOrigins.Add(new Rectangle(333, pelletY, pelletSize, pelletSize));
-            pelletsOrigins.Add(new Rectangle(375, pelletY, pelletSize, pelletSize));
+            Row19_X_Pattern(363, pelletSize);
 
             //row 20
-            pelletY = 383;
-            Row6_X_Pattern(pelletY, pelletSize);
+            Row6_X_Pattern(383, pelletSize);
 
             //row 21
-            pelletY = 403;
-            pelletsOrigins.Add(new Rectangle(23, pelletY, pelletSize, pelletSize));
-            pelletsOrigins.Add(new Rectangle(193, pelletY, pelletSize, pelletSize));
-            pelletsOrigins.Add(new Rectangle(233, pelletY, pelletSize, pelletSize));
-            pelletsOrigins.Add(new Rectangle(403, pelletY, pelletSize, pelletSize));
+            Row21_X_Pattern(403, pelletSize);
 
             //row 22
-            pelletY = 423;
-            Row4_X_Pattern(pelletY, pelletSize);
+            Row4_X_Pattern(423, pelletSize);
         }
 
+        /// <summary>
+        /// Adds a series of rectangles in the same row to the pelletsOrigins list, pattern in multiple rows
+        /// </summary>
+        /// <param name="pelletY"></param>row y value
+        /// <param name="pelletSize"></param>square pellet value
         public void Row1_X_Pattern(int pelletY, int pelletSize)
         {
             for (int i = 23; i <= 163; i += 14)
@@ -439,6 +735,11 @@ namespace Final_Project_Pac_Man
             }
         }
 
+        /// <summary>
+        /// Adds a series of rectangles in the same row to the pelletsOrigins list, pattern in multiple rows
+        /// </summary>
+        /// <param name="pelletY"></param>row y value
+        /// <param name="pelletSize"></param>square pellet value
         public void Row2_X_Pattern(int pelletY, int pelletSize)
         {
             pelletsOrigins.Add(new Rectangle(23, pelletY, pelletSize, pelletSize));
@@ -449,6 +750,11 @@ namespace Final_Project_Pac_Man
             pelletsOrigins.Add(new Rectangle(403, pelletY, pelletSize, pelletSize));
         }
 
+        /// <summary>
+        /// Adds a series of rectangles in the same row to the pelletsOrigins list, pattern in multiple rows
+        /// </summary>
+        /// <param name="pelletY"></param>row y value
+        /// <param name="pelletSize"></param>square pellet value
         public void Row4_X_Pattern(int pelletY, int pelletSize)
         {
             for (int i = 23; i <= 163; i += 14)
@@ -472,6 +778,26 @@ namespace Final_Project_Pac_Man
             }
         }
 
+        /// <summary>
+        /// Adds a series of rectangles in the same row to the pelletsOrigins list, pattern in multiple rows
+        /// </summary>
+        /// <param name="pelletY"></param>row y value
+        /// <param name="pelletSize"></param>square pellet value
+        public void Row5_X_Pattern(int pelletY, int pelletSize)
+        {
+            pelletsOrigins.Add(new Rectangle(23, pelletY, pelletSize, pelletSize));
+            pelletsOrigins.Add(new Rectangle(93, pelletY, pelletSize, pelletSize));
+            pelletsOrigins.Add(new Rectangle(135, pelletY, pelletSize, pelletSize));
+            pelletsOrigins.Add(new Rectangle(289, pelletY, pelletSize, pelletSize));
+            pelletsOrigins.Add(new Rectangle(333, pelletY, pelletSize, pelletSize));
+            pelletsOrigins.Add(new Rectangle(403, pelletY, pelletSize, pelletSize));
+        }
+
+        /// <summary>
+        /// Adds a series of rectangles in the same row to the pelletsOrigins list, pattern in multiple rows
+        /// </summary>
+        /// <param name="pelletY"></param>row y value
+        /// <param name="pelletSize"></param>square pellet value
         public void Row6_X_Pattern(int pelletY, int pelletSize)
         {
             for (int i = 23; i <= 93; i += 14)
@@ -494,16 +820,25 @@ namespace Final_Project_Pac_Man
             }
         }
 
-        public void Row7to15(int pelletY, int pelletSize)
+        /// <summary>
+        /// Adds multiple rows with the same series of rectangles to the pelletsOrigins list
+        /// </summary>
+        /// <param name="pelletSize"></param>square pellet value
+        public void Row7to15(int pelletSize)
         {
             for (int i = 159; i <= 287; i += 16)
             {
-                pelletY = i;
+                int pelletY = i;
                 pelletsOrigins.Add(new Rectangle(93, pelletY, pelletSize, pelletSize));
                 pelletsOrigins.Add(new Rectangle(333, pelletY, pelletSize, pelletSize));
             }
         }
 
+        /// <summary>
+        /// Adds a series of rectangles in the same row to the pelletsOrigins list, pattern in multiple rows
+        /// </summary>
+        /// <param name="pelletY"></param>row y value
+        /// <param name="pelletSize"></param>square pellet value
         public void Row17_X_Pattern(int pelletY, int pelletSize)
         {
             pelletsOrigins.Add(new Rectangle(23, pelletY, pelletSize, pelletSize));
@@ -514,6 +849,11 @@ namespace Final_Project_Pac_Man
             pelletsOrigins.Add(new Rectangle(403, pelletY, pelletSize, pelletSize));
         }
 
+        /// <summary>
+        /// Adds a series of rectangles in the same row to the pelletsOrigins list, pattern in multiple rows
+        /// </summary>
+        /// <param name="pelletY"></param>row y value
+        /// <param name="pelletSize"></param>square pellet value
         public void Row18_X_Pattern(int pelletY, int pelletSize)
         {
             for (int i = 23; i <= 51; i += 14)
@@ -536,6 +876,34 @@ namespace Final_Project_Pac_Man
             {
                 pelletsOrigins.Add(new Rectangle(i, pelletY, pelletSize, pelletSize));
             }
+        }
+
+        /// <summary>
+        /// Adds a series of rectangles in the same row to the pelletsOrigins list, pattern in multiple rows
+        /// </summary>
+        /// <param name="pelletY"></param>row y value
+        /// <param name="pelletSize"></param>square pellet value
+        public void Row19_X_Pattern(int pelletY, int pelletSize)
+        {
+            pelletsOrigins.Add(new Rectangle(51, pelletY, pelletSize, pelletSize));
+            pelletsOrigins.Add(new Rectangle(93, pelletY, pelletSize, pelletSize));
+            pelletsOrigins.Add(new Rectangle(135, pelletY, pelletSize, pelletSize));
+            pelletsOrigins.Add(new Rectangle(289, pelletY, pelletSize, pelletSize));
+            pelletsOrigins.Add(new Rectangle(333, pelletY, pelletSize, pelletSize));
+            pelletsOrigins.Add(new Rectangle(375, pelletY, pelletSize, pelletSize));
+        }
+
+        /// <summary>
+        /// Adds a series of rectangles in the same row to the pelletsOrigins list, pattern in multiple rows
+        /// </summary>
+        /// <param name="pelletY"></param>row y value
+        /// <param name="pelletSize"></param>square pellet value
+        public void Row21_X_Pattern(int pelletY, int pelletSize)
+        {
+            pelletsOrigins.Add(new Rectangle(23, pelletY, pelletSize, pelletSize));
+            pelletsOrigins.Add(new Rectangle(193, pelletY, pelletSize, pelletSize));
+            pelletsOrigins.Add(new Rectangle(233, pelletY, pelletSize, pelletSize));
+            pelletsOrigins.Add(new Rectangle(403, pelletY, pelletSize, pelletSize));
         }
     } 
 }

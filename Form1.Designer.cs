@@ -37,6 +37,7 @@ namespace Final_Project_Pac_Man
             this.highScoreLabel = new System.Windows.Forms.Label();
             this.titleLabel = new System.Windows.Forms.Label();
             this.instructionLabel = new System.Windows.Forms.Label();
+            this.countDownLabel = new System.Windows.Forms.Label();
             this.SuspendLayout();
             // 
             // gameTimer
@@ -99,11 +100,24 @@ namespace Final_Project_Pac_Man
             this.instructionLabel.Text = "instructionLabel";
             this.instructionLabel.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
+            // countDownLabel
+            // 
+            this.countDownLabel.BackColor = System.Drawing.Color.Transparent;
+            this.countDownLabel.Font = new System.Drawing.Font("Consolas", 14.1F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.countDownLabel.Location = new System.Drawing.Point(-49, 207);
+            this.countDownLabel.Name = "countDownLabel";
+            this.countDownLabel.Size = new System.Drawing.Size(516, 117);
+            this.countDownLabel.TabIndex = 6;
+            this.countDownLabel.Text = "countDownLabel";
+            this.countDownLabel.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            this.countDownLabel.Visible = false;
+            // 
             // Form1
             // 
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Inherit;
             this.BackColor = System.Drawing.Color.Black;
             this.ClientSize = new System.Drawing.Size(430, 470);
+            this.Controls.Add(this.countDownLabel);
             this.Controls.Add(this.scoreLabel);
             this.Controls.Add(this.instructionLabel);
             this.Controls.Add(this.titleLabel);
@@ -132,6 +146,7 @@ namespace Final_Project_Pac_Man
         private System.Windows.Forms.Label highScoreLabel;
         private System.Windows.Forms.Label titleLabel;
         private System.Windows.Forms.Label instructionLabel;
+        private System.Windows.Forms.Label countDownLabel;
     }
 }
 
