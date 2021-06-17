@@ -38,6 +38,8 @@ namespace Final_Project_Pac_Man
             this.titleLabel = new System.Windows.Forms.Label();
             this.instructionLabel = new System.Windows.Forms.Label();
             this.countDownLabel = new System.Windows.Forms.Label();
+            this.p1Button = new System.Windows.Forms.Button();
+            this.p2Button = new System.Windows.Forms.Button();
             this.SuspendLayout();
             // 
             // gameTimer
@@ -95,7 +97,7 @@ namespace Final_Project_Pac_Man
             this.instructionLabel.Font = new System.Drawing.Font("Consolas", 14.1F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.instructionLabel.Location = new System.Drawing.Point(-39, 243);
             this.instructionLabel.Name = "instructionLabel";
-            this.instructionLabel.Size = new System.Drawing.Size(516, 134);
+            this.instructionLabel.Size = new System.Drawing.Size(516, 189);
             this.instructionLabel.TabIndex = 5;
             this.instructionLabel.Text = "instructionLabel";
             this.instructionLabel.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
@@ -104,19 +106,53 @@ namespace Final_Project_Pac_Man
             // 
             this.countDownLabel.BackColor = System.Drawing.Color.Transparent;
             this.countDownLabel.Font = new System.Drawing.Font("Consolas", 14.1F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.countDownLabel.Location = new System.Drawing.Point(-49, 207);
+            this.countDownLabel.Location = new System.Drawing.Point(-39, 205);
             this.countDownLabel.Name = "countDownLabel";
-            this.countDownLabel.Size = new System.Drawing.Size(516, 117);
+            this.countDownLabel.Size = new System.Drawing.Size(504, 117);
             this.countDownLabel.TabIndex = 6;
             this.countDownLabel.Text = "countDownLabel";
             this.countDownLabel.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             this.countDownLabel.Visible = false;
+            // 
+            // p1Button
+            // 
+            this.p1Button.BackColor = System.Drawing.Color.Transparent;
+            this.p1Button.FlatAppearance.BorderColor = System.Drawing.Color.White;
+            this.p1Button.FlatAppearance.MouseDownBackColor = System.Drawing.Color.Gray;
+            this.p1Button.FlatAppearance.MouseOverBackColor = System.Drawing.Color.DimGray;
+            this.p1Button.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.p1Button.ForeColor = System.Drawing.Color.White;
+            this.p1Button.Location = new System.Drawing.Point(152, 308);
+            this.p1Button.Name = "p1Button";
+            this.p1Button.Size = new System.Drawing.Size(58, 48);
+            this.p1Button.TabIndex = 7;
+            this.p1Button.Text = "1p";
+            this.p1Button.UseVisualStyleBackColor = false;
+            this.p1Button.Click += new System.EventHandler(this.p1Button_Click);
+            // 
+            // p2Button
+            // 
+            this.p2Button.BackColor = System.Drawing.Color.Transparent;
+            this.p2Button.FlatAppearance.BorderColor = System.Drawing.Color.White;
+            this.p2Button.FlatAppearance.MouseDownBackColor = System.Drawing.Color.Gray;
+            this.p2Button.FlatAppearance.MouseOverBackColor = System.Drawing.Color.DimGray;
+            this.p2Button.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.p2Button.ForeColor = System.Drawing.Color.White;
+            this.p2Button.Location = new System.Drawing.Point(231, 308);
+            this.p2Button.Name = "p2Button";
+            this.p2Button.Size = new System.Drawing.Size(58, 48);
+            this.p2Button.TabIndex = 8;
+            this.p2Button.Text = "2p";
+            this.p2Button.UseVisualStyleBackColor = false;
+            this.p2Button.Click += new System.EventHandler(this.p2Button_Click);
             // 
             // Form1
             // 
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Inherit;
             this.BackColor = System.Drawing.Color.Black;
             this.ClientSize = new System.Drawing.Size(430, 470);
+            this.Controls.Add(this.p2Button);
+            this.Controls.Add(this.p1Button);
             this.Controls.Add(this.countDownLabel);
             this.Controls.Add(this.scoreLabel);
             this.Controls.Add(this.instructionLabel);
@@ -147,6 +183,8 @@ namespace Final_Project_Pac_Man
         private System.Windows.Forms.Label titleLabel;
         private System.Windows.Forms.Label instructionLabel;
         private System.Windows.Forms.Label countDownLabel;
+        private System.Windows.Forms.Button p1Button;
+        private System.Windows.Forms.Button p2Button;
     }
 }
 

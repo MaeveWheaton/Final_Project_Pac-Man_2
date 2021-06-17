@@ -23,6 +23,7 @@ namespace Final_Project_Pac_Man
     public partial class Form1 : Form
     {
         //global variables
+        //player 1
         Rectangle pacMan = new Rectangle();
         string pacManDirection;
         int pacManStartAngle;
@@ -35,24 +36,44 @@ namespace Final_Project_Pac_Man
         Rectangle pacManRight = new Rectangle();
         Rectangle pacManCentre = new Rectangle(); //for turn points
 
+        //blinky = red ghost, player 2
+        Rectangle blinky = new Rectangle();
+        string blinkyDirection;
+        int blinkyStartAngle;
+        int blinkySpeed;
+        int blinkyPreviousX; //for reseting position after wall collision
+        int blinkyPreviousY;
+        Rectangle blinkyTop = new Rectangle(); //for stopping at walls
+        Rectangle blinkyLeft = new Rectangle();
+        Rectangle blinkyBottom = new Rectangle();
+        Rectangle blinkyRight = new Rectangle();
+        Rectangle blinkyCentre = new Rectangle(); //for turn points
+
         List<Rectangle> walls = new List<Rectangle>();
         List<Rectangle> pelletsOrigins = new List<Rectangle>();
         List<Rectangle> pellets = new List<Rectangle>();
         List<Rectangle> turnPoints = new List<Rectangle>();
 
+        bool wDown = false;
+        bool aDown = false;
+        bool sDown = false;
+        bool dDown = false;
         bool upArrowDown;
         bool leftArrowDown;
         bool downArrowDown;
         bool rightArrowDown;
 
         string gameState = "waiting";
+        string gameMode = "undefined";
         string outcome;
 
         int score;
         int time;
-        int highScore = 0;
+        int onePHighScore = 0;
+        int twoPHighScore = 0;
 
         SolidBrush pacManBrush = new SolidBrush(Color.Yellow);
+        SolidBrush blinkyBrush = new SolidBrush(Color.Red);
         SolidBrush pelletsBrush = new SolidBrush(Color.PapayaWhip);
         SolidBrush wallBrush = new SolidBrush(Color.DodgerBlue);
 
@@ -62,6 +83,28 @@ namespace Final_Project_Pac_Man
         {
             InitializeComponent();
             bgMusic.Play();
+        }
+
+        private void p1Button_Click(object sender, EventArgs e)
+        {
+            gameMode = "1p";
+
+            //remove buttons
+            p1Button.Visible = false;
+            p1Button.Enabled = false;
+            p2Button.Visible = false;
+            p2Button.Enabled = false;
+        }
+
+        private void p2Button_Click(object sender, EventArgs e)
+        {
+            gameMode = "2p";
+
+            //remove buttons
+            p1Button.Visible = false;
+            p1Button.Enabled = false;
+            p2Button.Visible = false;
+            p2Button.Enabled = false;
         }
 
         /// <summary>
@@ -87,6 +130,13 @@ namespace Final_Project_Pac_Man
             pacManDirection = "left";
             pacManStartAngle = 225;
             pacManSpeed = 10;
+
+            if (gameMode == "2p")
+            {
+                blinky = new Rectangle(205, 175, 20, 20);
+                blinkyDirection = "right";
+                blinkySpeed = 10;
+            }
 
             gameState = "running";
 
@@ -123,6 +173,18 @@ namespace Final_Project_Pac_Man
         {
             switch (e.KeyCode)
             {
+                case Keys.W:
+                    wDown = true;
+                    break;
+                case Keys.A:
+                    aDown = true;
+                    break;
+                case Keys.S:
+                    sDown = true;
+                    break;
+                case Keys.D:
+                    dDown = true;
+                    break;
                 case Keys.Up:
                     upArrowDown = true;
                     break;
@@ -136,7 +198,9 @@ namespace Final_Project_Pac_Man
                     rightArrowDown = true;
                     break;
                 case Keys.Space:
-                    if (gameState == "waiting" || gameState == "over")
+                    if (gameState == "waiting" && gameMode == "1p" ||
+                        gameState == "waiting" && gameMode == "2p" || 
+                        gameState == "over")
                     {
                         GameInit();
                     }
@@ -147,6 +211,20 @@ namespace Final_Project_Pac_Man
                         Application.Exit();
                     }
                     break;
+                case Keys.B:
+                    if (gameState == "waiting" || gameState == "over")
+                    {
+                        gameState = "waiting";
+                        gameMode = "undefined";
+
+                        //add buttons
+                        p1Button.Visible = true;
+                        p1Button.Enabled = true;
+                        p2Button.Visible = true;
+                        p2Button.Enabled = true;
+                        Refresh();
+                    }
+                    break;
             }
         }
 
@@ -154,6 +232,18 @@ namespace Final_Project_Pac_Man
         {
             switch (e.KeyCode)
             {
+                case Keys.W:
+                    wDown = false;
+                    break;
+                case Keys.A:
+                    aDown = false;
+                    break;
+                case Keys.S:
+                    sDown = false;
+                    break;
+                case Keys.D:
+                    dDown = false;
+                    break;
                 case Keys.Up:
                     upArrowDown = false;
                     break;
@@ -189,8 +279,28 @@ namespace Final_Project_Pac_Man
             //chack if pacman collides with a pellet
             PacManPelletCollision();
 
-            //decrease time, check for end game
-            time--;
+            if (gameMode == "2p")
+            {
+                //blinky controls and collisions
+                blinkyPreviousX = blinky.X;
+                blinkyPreviousY = blinky.Y;
+
+                //move in current direction
+                MoveBlinky();
+
+                //check for collision with wall in current direction
+                BlinkyWallCollision();
+
+                //check for change in direction
+                ChangeBlinkyDirection();
+            }
+            else
+            {
+                //decrease time for 1p
+                time--;
+            }
+
+            //check for end game
             CheckEndConditions();
 
             Refresh();
@@ -200,24 +310,49 @@ namespace Final_Project_Pac_Man
         {
             if (gameState == "waiting")
             {
-                //write labels
-                timeLabel.Text = "";
-                scoreLabel.Text = "";
-                highScoreLabel.Text = $"HIGHSCORE: {highScore}";
-                instructionLabel.Text = "PRESS SPACE TO START\n\nPRESS ESCAPE TO EXIT\n\nUSE ARROWS TO CHANGE DIRECTION";
-                titleLabel.Text = "PAC-MAN";
+                if (gameMode == "undefined")
+                {
+                    //write labels
+                    timeLabel.Text = "";
+                    scoreLabel.Text = "";
+                    highScoreLabel.Text = "";
+                    instructionLabel.Text = "CHOOSE GAME MODE\n\n\n\n\n\n";
+                    titleLabel.Text = "PAC-MAN";
 
-                //draw pacman and dots
-                e.Graphics.FillPie(pacManBrush, 135, 195, 40, 40, 45, 270);
-                e.Graphics.FillEllipse(pelletsBrush, 195, 210, 10, 10);
-                e.Graphics.FillEllipse(pelletsBrush, 225, 210, 10, 10);
-                e.Graphics.FillEllipse(pelletsBrush, 255, 210, 10, 10);
-                e.Graphics.FillEllipse(pelletsBrush, 285, 210, 10, 10);
+                    //draw pacman and dots
+                    e.Graphics.FillPie(pacManBrush, 135, 195, 40, 40, 45, 270);
+                    e.Graphics.FillEllipse(pelletsBrush, 195, 210, 10, 10);
+                    e.Graphics.FillEllipse(pelletsBrush, 225, 210, 10, 10);
+                    e.Graphics.FillEllipse(pelletsBrush, 255, 210, 10, 10);
+                    e.Graphics.FillEllipse(pelletsBrush, 285, 210, 10, 10);
+                }
+                else if (gameMode == "1p" || gameMode == "2p")
+                {
+                    //write labels
+                    if (gameMode == "1p")
+                    {
+                        highScoreLabel.Text = $"HIGHSCORE: {onePHighScore}";
+                        instructionLabel.Text = "PRESS SPACE TO START\n\nPRESS ESCAPE TO EXIT\n\nUSE ARROWS TO CHANGE DIRECTION\n\nPRESS B TO CHANGE GAME MODE";
+                        titleLabel.Text = "1 PLAYER";
+                    }
+                    else
+                    {
+                        highScoreLabel.Text = $"HIGHSCORE: {twoPHighScore}";
+                        instructionLabel.Text = "PRESS SPACE TO START\n\nPRESS ESCAPE TO EXIT\n\nPRESS B TO CHANGE GAME MODE\n\nPACMAN - ARROWS (collect all dots to win)\nBLINKY - WASD (catch Pac-Man to win)";
+                        titleLabel.Text = "2 PLAYERS";
+                    }
+
+                    //draw pacman and dots
+                    e.Graphics.FillPie(pacManBrush, 135, 195, 40, 40, 45, 270);
+                    e.Graphics.FillEllipse(pelletsBrush, 195, 210, 10, 10);
+                    e.Graphics.FillEllipse(pelletsBrush, 225, 210, 10, 10);
+                    e.Graphics.FillEllipse(pelletsBrush, 255, 210, 10, 10);
+                    e.Graphics.FillEllipse(pelletsBrush, 285, 210, 10, 10);
+                }
             }
             else if (gameState == "running")
             {
-                //update labels
-                timeLabel.Text = $"TIME LEFT: {time}";
+                //update score
                 scoreLabel.Text = $"SCORE: {score}";
 
                 //draw walls
@@ -234,23 +369,67 @@ namespace Final_Project_Pac_Man
 
                 //draw pacman
                 e.Graphics.FillPie(pacManBrush, pacMan, pacManStartAngle, 270);
+
+                //mode specific code
+                if (gameMode == "1p")
+                {
+                    //update time
+                    timeLabel.Text = $"TIME LEFT: {time}";
+                }
+                else
+                {
+                    //draw blinky
+                    e.Graphics.FillEllipse(blinkyBrush, blinky);
+                }
             }
             else if (gameState == "over")
             {
-                //clear labels
-                timeLabel.Text = "";
-                scoreLabel.Text = "";
+                if (gameMode == "1p")
+                {
+                    //clear time
+                    timeLabel.Text = "";
 
-                //determine title message
-                if (outcome == "win")
-                {
-                    titleLabel.Text = "YOU WIN";
+                    //determine title message
+                    if (outcome == "p1win")
+                    {
+                        titleLabel.Text = "YOU WIN";
+                    }
+                    else
+                    {
+                        titleLabel.Text = "GAME OVER";
+                    }
+
+                    //update highscore
+                    if (score > onePHighScore)
+                    {
+                        onePHighScore = score;
+                        highScoreLabel.Text = $"HIGHSCORE: {onePHighScore}";
+                    }
                 }
-                else if (outcome == "lose")
+                else if (gameMode == "2p")
                 {
-                    titleLabel.Text = "GAME OVER";
+                    //determine title message
+                    if (outcome == "p1win")
+                    {
+                        titleLabel.Text = "PACMAN WINS";
+                    }
+                    else
+                    {
+                        titleLabel.Text = "GHOST WINS";
+                    }
+
+                    //update highscore
+                    if (score > twoPHighScore)
+                    {
+                        twoPHighScore = score;
+                        highScoreLabel.Text = $"HIGHSCORE: {twoPHighScore}";
+                    }
                 }
-                instructionLabel.Text = "PRESS SPACE TO PLAY AGAIN\n\nPRESS ESCAPE TO EXIT";
+
+                //clear score
+                scoreLabel.Text = "";
+                
+                instructionLabel.Text = "PRESS SPACE TO PLAY AGAIN\n\nPRESS ESCAPE TO EXIT\n\nPRESS B TO CHANGE GAME MODE\n";
 
                 //draw pacman and dots
                 e.Graphics.FillPie(pacManBrush, 135, 195, 40, 40, 45, 270);
@@ -259,12 +438,7 @@ namespace Final_Project_Pac_Man
                 e.Graphics.FillEllipse(pelletsBrush, 255, 210, 10, 10);
                 e.Graphics.FillEllipse(pelletsBrush, 285, 210, 10, 10);
 
-                //update highscore
-                if (score > highScore)
-                {
-                    highScore = score;
-                    highScoreLabel.Text = $"HIGHSCORE: {highScore}";
-                }
+                
             }
         }
 
@@ -303,7 +477,7 @@ namespace Final_Project_Pac_Man
                     {
                         if (pacManTop.IntersectsWith(walls[i]))
                         {
-                            WallCollisionReset();
+                            PacManWallCollisionReset();
                         }
                     }
                     break;
@@ -313,7 +487,7 @@ namespace Final_Project_Pac_Man
                     {
                         if (pacManLeft.IntersectsWith(walls[i]))
                         {
-                            WallCollisionReset();
+                            PacManWallCollisionReset();
                         }
                     }
                     break;
@@ -323,7 +497,7 @@ namespace Final_Project_Pac_Man
                     {
                         if (pacManBottom.IntersectsWith(walls[i]))
                         {
-                            WallCollisionReset();
+                            PacManWallCollisionReset();
                         }
                     }
                     break;
@@ -333,7 +507,7 @@ namespace Final_Project_Pac_Man
                     {
                         if (pacManRight.IntersectsWith(walls[i]))
                         {
-                            WallCollisionReset();
+                            PacManWallCollisionReset();
                         }
                     }
                     break;
@@ -343,7 +517,7 @@ namespace Final_Project_Pac_Man
         /// <summary>
         /// Resets pacman back to position before movement so it doesn't go into the wall and stops
         /// </summary>
-        public void WallCollisionReset()
+        public void PacManWallCollisionReset()
         {
             pacMan.X = pacManPreviousX;
             pacMan.Y = pacManPreviousY;
@@ -485,19 +659,204 @@ namespace Final_Project_Pac_Man
         }
 
         /// <summary>
+        /// Checks current direction and moves Blinky
+        /// </summary>
+        public void MoveBlinky()
+        {
+            switch (blinkyDirection)
+            {
+                case "up":
+                    blinky.Y -= blinkySpeed;
+                    break;
+                case "left":
+                    blinky.X -= blinkySpeed;
+                    break;
+                case "down":
+                    blinky.Y += blinkySpeed;
+                    break;
+                case "right":
+                    blinky.X += blinkySpeed;
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// Checks if Blinky collides with a wall in the current direction
+        /// </summary>
+        public void BlinkyWallCollision()
+        {
+            switch (blinkyDirection)
+            {
+                case "up":
+                    blinkyTop = new Rectangle(blinky.X, blinky.Y, 20, 1);
+                    for (int i = 0; i < walls.Count(); i++)
+                    {
+                        if (blinkyTop.IntersectsWith(walls[i]))
+                        {
+                            BlinkyWallCollisionReset();
+                        }
+                    }
+                    break;
+                case "left":
+                    blinkyLeft = new Rectangle(blinky.X, blinky.Y, 1, 20);
+                    for (int i = 0; i < walls.Count(); i++)
+                    {
+                        if (blinkyLeft.IntersectsWith(walls[i]))
+                        {
+                            BlinkyWallCollisionReset();
+                        }
+                    }
+                    break;
+                case "down":
+                    blinkyBottom = new Rectangle(blinky.X, blinky.Y + 15, 20, 1);
+                    for (int i = 0; i < walls.Count(); i++)
+                    {
+                        if (blinkyBottom.IntersectsWith(walls[i]))
+                        {
+                            BlinkyWallCollisionReset();
+                        }
+                    }
+                    break;
+                case "right":
+                    blinkyRight = new Rectangle(blinky.X + 15, blinky.Y, 1, 20);
+                    for (int i = 0; i < walls.Count(); i++)
+                    {
+                        if (blinkyRight.IntersectsWith(walls[i]))
+                        {
+                            BlinkyWallCollisionReset();
+                        }
+                    }
+                    break;
+            }
+
+            if (blinky.X <= 0 || blinky.X >= this.Width - blinky.Width)
+            {
+                BlinkyWallCollisionReset();
+            }
+        }
+
+        /// <summary>
+        /// Resets Blinky back to position before movement so it doesn't go into the wall and stops
+        /// </summary>
+        public void BlinkyWallCollisionReset()
+        {
+            blinky.X = blinkyPreviousX;
+            blinky.Y = blinkyPreviousY;
+            blinkySpeed = 0;
+        }
+
+        /// <summary>
+        /// Checks current Blinky direction and changes direction if key is pressed while at a turn point, can always reverse
+        /// </summary>
+        public void ChangeBlinkyDirection()
+        {
+            blinkyCentre = new Rectangle(blinky.X + 5, blinky.Y + 5, 10, 10);
+
+            switch (blinkyDirection)
+            {
+                case "up":
+                    if (sDown == true)
+                    {
+                        blinkyDirection = "down";
+                        blinkySpeed = 10;
+                    }
+                    for (int i = 0; i < turnPoints.Count(); i++)
+                    {
+                        if (aDown == true && blinkyCentre.IntersectsWith(turnPoints[i]))
+                        {
+                            blinkyDirection = "left";
+                            blinkySpeed = 10;
+                        }
+                        if (dDown == true && blinkyCentre.IntersectsWith(turnPoints[i]))
+                        {
+                            blinkyDirection = "right";
+                            blinkySpeed = 10;
+                        }
+                    }
+                    break;
+                case "left":
+                    if (dDown == true)
+                    {
+                        blinkyDirection = "right";
+                        blinkySpeed = 10;
+                    }
+                    for (int i = 0; i < turnPoints.Count(); i++)
+                    {
+                        if (wDown == true && blinkyCentre.IntersectsWith(turnPoints[i]))
+                        {
+                            blinkyDirection = "up";
+                            blinkySpeed = 10;
+                        }
+                        if (sDown == true && blinkyCentre.IntersectsWith(turnPoints[i]))
+                        {
+                            blinkyDirection = "down";
+                            blinkySpeed = 10;
+                        }
+                    }
+                    break;
+                case "down":
+                    if (wDown == true)
+                    {
+                        blinkyDirection = "up";
+                        blinkySpeed = 10;
+                    }
+                    for (int i = 0; i < turnPoints.Count(); i++)
+                    {
+                        if (aDown == true && blinkyCentre.IntersectsWith(turnPoints[i]))
+                        {
+                            blinkyDirection = "left";
+                            blinkySpeed = 10;
+                        }
+                        if (dDown == true && blinkyCentre.IntersectsWith(turnPoints[i]))
+                        {
+                            blinkyDirection = "right";
+                            blinkySpeed = 10;
+                        }
+                    }
+                    break;
+                case "right":
+                    if (aDown == true)
+                    {
+                        blinkyDirection = "left";
+                        blinkySpeed = 10;
+                    }
+                    for (int i = 0; i < turnPoints.Count(); i++)
+                    {
+                        if (wDown == true && blinkyCentre.IntersectsWith(turnPoints[i]))
+                        {
+                            blinkyDirection = "up";
+                            blinkySpeed = 10;
+                        }
+                        if (sDown == true && blinkyCentre.IntersectsWith(turnPoints[i]))
+                        {
+                            blinkyDirection = "down";
+                            blinkySpeed = 10;
+                        }
+                    }
+                    break;
+            }
+        }
+
+        /// <summary>
         /// Ends game if time is up or all the pellet are gone
         /// </summary>
         public void CheckEndConditions()
         {
-            if (time == 0)
+            if (gameMode == "1p" && time == 0)
             {
                 outcome = "lose";
                 gameTimer.Enabled = false;
                 gameState = "over";
             }
+            else if (gameMode == "2p" && blinky.IntersectsWith(pacMan))
+            {
+                outcome = "p2win";
+                gameTimer.Enabled = false;
+                gameState = "over";
+            }
             else if (pellets.Count() == 0)
             {
-                outcome = "win";
+                outcome = "p1win";
                 gameTimer.Enabled = false;
                 gameState = "over";
             }
